@@ -3,9 +3,9 @@ import os
 import json
 
 def extract_intelligence(raw_text):
-    # 1. Define all of your regex patterns
-    keyword_pattern = r'\b(breach|leak|ransomware)\b'
-    ip_pattern = r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'
+    # 1. Define all of your regex patterns (Now featuring the Pro IP Pattern & Watchlist!)
+    keyword_pattern = r'\b(breach|leak|ransomware|cyber-shakti)\b'
+    ip_pattern = r'\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b'
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     wallet_pattern = r'\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b'
 
@@ -25,9 +25,9 @@ def extract_intelligence(raw_text):
     
     return results
 
-# 4. New logic to read actual files and pretty-print the output
+# 4. Read actual files and pretty-print the output
 if __name__ == "__main__":
-    # Define the path to the mock file you just created
+    # Define the path to the mock file
     file_path = "data/mock/leak1.txt"
     
     # Check if the file exists before trying to open it
