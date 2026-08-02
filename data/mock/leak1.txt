@@ -1,0 +1,5 @@
+URGENT UPDATE: We found a massive LEAK on a deep web forum. The attackers are demanding ransomeware payments to multiple wallets, including 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa and 3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy. They hit the cyber-shakti database.
+
+Here are the compromised IPs: 192.168.1.5, 10.0.0.255, and 999.999.999.999 (Wait, is that last one a real IP?).
+
+Please contact the incident response team at admin@cyber-shakti.org or our backup email at security-alert_99@corp-net.com. Do NOT email fake@email.
