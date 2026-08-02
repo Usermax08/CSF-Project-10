@@ -1,4 +1,6 @@
 import re
+import os
+import json
 
 def extract_intelligence(raw_text):
     # 1. Define all of your regex patterns
@@ -23,13 +25,26 @@ def extract_intelligence(raw_text):
     
     return results
 
-# 4. A quick test block to ensure your engine works
+# 4. New logic to read actual files and pretty-print the output
 if __name__ == "__main__":
-    dummy_text = """
-    URGENT: The server at 192.168.1.5 was hit by ransomware today. 
-    A major breach has occurred. Contact admin@cyber-shakti.org immediately. 
-    Send the recovery funds to 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa.
-    """
+    # Define the path to the mock file you just created
+    file_path = "data/mock/leak1.txt"
     
-    extracted_data = extract_intelligence(dummy_text)
-    print(extracted_data)
+    # Check if the file exists before trying to open it
+    if os.path.exists(file_path):
+        print(f"Opening file: {file_path}")
+        
+        # Open the file and read the text inside
+        with open(file_path, 'r', encoding='utf-8') as file:
+            raw_text = file.read()
+            
+        # Pass the real text into your extraction engine
+        extracted_data = extract_intelligence(raw_text)
+        
+        print("\n--- EXTRACTION RESULTS ---")
+        
+        # This is the magic line that formats the output perfectly
+        print(json.dumps(extracted_data, indent=4))
+        
+    else:
+        print(f"Error: Could not find the file at {file_path}")
