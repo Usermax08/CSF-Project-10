@@ -1,16 +1,12 @@
 import sqlite3
 import os
-import json  # Added this so we can convert your dictionary to text for the database
+import json
 from datetime import datetime
-
-# 1. THE HANDSHAKE: Import your extraction engine!
 from extractor import extract_intelligence
 
-# Connect to SQLite database
 conn = sqlite3.connect("cyber_intel.db")
 cursor = conn.cursor()
 
-# Create table if it doesn't exist
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS intel (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,28 +18,26 @@ CREATE TABLE IF NOT EXISTS intel (
 )
 """)
 
-# Folder containing mock leak files
-mock_folder = "data/mock"
+# We now look at the main data folder to catch both mock and live data
+data_folder = "data"
 
 cursor.execute("DELETE FROM intel")
 
-# Read every .txt file
-for filename in os.listdir(mock_folder):
-    if filename.endswith(".txt"):
-        filepath = os.path.join(mock_folder, filename)
-
+# Read every file in the folder
+for filename in os.listdir(data_folder):
+    filepath = os.path.join(data_folder, filename)
+    
+    # Check if it is a file (and ignore the 'mock' subfolder)
+    if os.path.isfile(filepath):
         with open(filepath, "r", encoding="utf-8") as file:
             text = file.read()
 
-        # 2. PASS THE BATON: Send the text through your engine!
+        # Pass the file text into your extraction engine
         extracted_data = extract_intelligence(text)
 
-        # 3. FORMAT FOR DATABASE: Databases need strings, not Python lists
-        # We join your keywords with commas, and dump your dictionary to a JSON string
         keyword_flag = ", ".join(extracted_data["keywords_flagged"])
         entities_json = json.dumps(extracted_data)
 
-        # Insert into database
         cursor.execute("""
         INSERT INTO intel
         (source, raw_text, extracted_entities, keyword_flag, timestamp)
@@ -52,15 +46,12 @@ for filename in os.listdir(mock_folder):
         (
             filename,
             text,
-            entities_json,  # 4. We drop your extracted dictionary right here!
-            keyword_flag,   # 5. We use your Pro-level keyword flags here!
+            entities_json,
+            keyword_flag,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ))
 
-# Save everything
 conn.commit()
-
-# Close database
 conn.close()
 
-print("All files successfully processed by the Extractor and saved to the database!")
+print("All live intelligence processed and saved to the database!")

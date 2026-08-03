@@ -1,0 +1,28 @@
+{
+    "source": "AlienVault OTX",
+    "timestamp": "2026-08-02T11:54:16Z",
+    "pulses": [
+        {
+            "name": "New Ransomware Campaign Targeting cyber-shakti Infrastructure",
+            "indicators": [
+                {
+                    "type": "IPv4",
+                    "indicator": "45.22.109.12"
+                },
+                {
+                    "type": "IPv4",
+                    "indicator": "192.168.1.5"
+                },
+                {
+                    "type": "email",
+                    "indicator": "threat-actor@dark-web-ops.net"
+                },
+                {
+                    "type": "email",
+                    "indicator": "admin@cyber-shakti.org"
+                }
+            ],
+            "description": "A massive breach was detected. Threat actors are requesting Bitcoin to 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2."
+        }
+    ]
+}
