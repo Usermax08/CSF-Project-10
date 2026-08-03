@@ -9,36 +9,41 @@ def get_db_connection():
     conn = sqlite3.connect("cyber_intel.db")
     return conn
 
-# Force schema setup & seed initial baseline data
+# Safely create table and auto-migrate missing columns if using an old database
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Enable schema migration by resetting table if columns are missing
-    try:
-        cursor.execute("SELECT severity FROM intel_reports LIMIT 1")
-    except sqlite3.OperationalError:
-        # Table exists with old schema -> drop and rebuild
-        cursor.execute("DROP TABLE IF EXISTS intel_reports")
-    
-    # Create Table with full schema
+    # 1. Ensure Base Table Exists
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS intel_reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             raw_content TEXT,
-            severity TEXT DEFAULT 'Medium ℹ️',
-            threat_actor TEXT DEFAULT 'Unknown',
-            mitigation TEXT DEFAULT 'Monitor network traffic',
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # Check if table is empty
+    # 2. Check Existing Columns for Auto-Migration
+    cursor.execute("PRAGMA table_info(intel_reports)")
+    existing_columns = [col[1] for col in cursor.fetchall()]
+    
+    # Add 'severity' column if missing
+    if "severity" not in existing_columns:
+        cursor.execute("ALTER TABLE intel_reports ADD COLUMN severity TEXT DEFAULT 'Medium ℹ️'")
+        
+    # Add 'threat_actor' column if missing
+    if "threat_actor" not in existing_columns:
+        cursor.execute("ALTER TABLE intel_reports ADD COLUMN threat_actor TEXT DEFAULT 'Unknown'")
+        
+    # Add 'mitigation' column if missing
+    if "mitigation" not in existing_columns:
+        cursor.execute("ALTER TABLE intel_reports ADD COLUMN mitigation TEXT DEFAULT 'Monitor network traffic'")
+        
+    # 3. Pre-load Initial Default Threats if Table is Empty
     cursor.execute("SELECT COUNT(*) FROM intel_reports")
     count = cursor.fetchone()[0]
     
-    # Pre-load initial baseline threat intelligence if empty
     if count == 0:
         default_threats = [
             (
@@ -72,7 +77,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Run database setup & seeding
+# Execute Database Initialization
 init_db()
 
 # --- HEADER SECTION ---
@@ -130,7 +135,12 @@ st.subheader("📋 Active Intelligence Feed & Risk Analysis")
 
 if not reports_df.empty:
     for idx, row in reports_df.iterrows():
-        card_title = f"{row['severity']} | {row['title']} (Actor: {row['threat_actor']})"
+        # Fallback values if older rows had NULL
+        sev = row['severity'] if pd.notnull(row['severity']) else "Medium ℹ️"
+        actor = row['threat_actor'] if pd.notnull(row['threat_actor']) else "Unknown"
+        mitig = row['mitigation'] if pd.notnull(row['mitigation']) else "Monitor network traffic"
+        
+        card_title = f"{sev} | {row['title']} (Actor: {actor})"
         
         with st.expander(card_title, expanded=False):
             c1, c2 = st.columns([2, 1])
@@ -139,7 +149,7 @@ if not reports_df.empty:
                 st.code(row['raw_content'], language="text")
             with c2:
                 st.markdown("**🛡️ Recommended Mitigation:**")
-                st.info(row['mitigation'])
+                st.info(mitig)
                 st.caption(f"Log Timestamp: {row['timestamp']}")
 else:
     st.info("No threat intelligence records found.")
