@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 
 # Page Configuration
-st.set_page_config(page_title="Cyber Shakti Threat Intel Platform", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="Threat Intelligence & Incident Response Dashboard", page_icon="🛡️", layout="wide")
 
 def get_db_connection():
     conn = sqlite3.connect("cyber_intel.db")
