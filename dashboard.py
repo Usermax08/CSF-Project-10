@@ -81,7 +81,7 @@ def init_db():
 init_db()
 
 # --- HEADER SECTION ---
-st.title("🛡️ Cyber Shakti Threat Intelligence Dashboard")
+st.title("🛡️Threat Intelligence & Incident Response Dashboard")
 st.markdown("Real-time telemetry and Threat Indicators of Compromise (IoCs).")
 
 # --- SIDEBAR: SUBMIT INTEL FORM ---
