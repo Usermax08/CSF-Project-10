@@ -28,15 +28,11 @@ def init_db():
     cursor.execute("PRAGMA table_info(intel_reports)")
     existing_columns = [col[1] for col in cursor.fetchall()]
     
-    # Add 'severity' column if missing
+    # Add columns if missing
     if "severity" not in existing_columns:
         cursor.execute("ALTER TABLE intel_reports ADD COLUMN severity TEXT DEFAULT 'Medium ℹ️'")
-        
-    # Add 'threat_actor' column if missing
     if "threat_actor" not in existing_columns:
         cursor.execute("ALTER TABLE intel_reports ADD COLUMN threat_actor TEXT DEFAULT 'Unknown'")
-        
-    # Add 'mitigation' column if missing
     if "mitigation" not in existing_columns:
         cursor.execute("ALTER TABLE intel_reports ADD COLUMN mitigation TEXT DEFAULT 'Monitor network traffic'")
         
@@ -98,14 +94,33 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Execute Database Initialization
 init_db()
+
+# Helper function for incident response playbooks
+def generate_playbook(title, severity):
+    t_lower = title.lower()
+    if "ransomware" in t_lower:
+        return """
+        **Phase 1: Containment** 🛑\n- Immediately disconnect infected assets from local network.\n- Suspend network shares to prevent lateral SMB movement.\n\n**Phase 2: Eradication** 🧹\n- Identify patient zero vector and purge persistence registry keys.\n\n**Phase 3: Recovery** 🔄\n- Restore impacted files from verified offline, immutable backups.
+        """
+    elif "phishing" in t_lower or "credential" in t_lower:
+        return """
+        **Phase 1: Containment** 🛑\n- Revoke active session tokens for compromised user accounts.\n- Block malicious sender domains at email gateway.\n\n**Phase 2: Eradication** 🧹\n- Purge malicious emails via search-and-destroy rules.\n\n**Phase 3: Recovery** 🔄\n- Force Multi-Factor Authentication (MFA) re-enrollment.
+        """
+    elif "ddos" in t_lower or "botnet" in t_lower:
+        return """
+        **Phase 1: Containment** 🛑\n- Engage Cloud DDoS scrubbing center.\n- Implement strict rate-limiting on edge routers.\n\n**Phase 2: Eradication** 🧹\n- Filter malicious User-Agents and offending ASNs.\n\n**Phase 3: Recovery** 🔄\n- Monitor upstream bandwidth until traffic normalizes.
+        """
+    else:
+        return f"""
+        **Phase 1: Containment (Severity: {severity})** 🛑\n- Isolate source and destination endpoints involved in anomaly.\n\n**Phase 2: Eradication** 🧹\n- Apply vendor patches and update firewall rules.\n\n**Phase 3: Recovery** 🔄\n- Conduct post-incident log review and archive artifact.
+        """
 
 # --- HEADER SECTION ---
 st.title("🛡️ AI-Powered Threat Intelligence Platform")
-st.markdown("Real-time telemetry and Threat Indicators of Compromise (IoCs).")
+st.markdown("Real-time telemetry, Threat Indicators of Compromise (IoCs), and Automated Incident Response Playbooks.")
 
-# --- SIDEBAR: SUBMIT INTEL FORM ---
+# --- SIDEBAR: ANALYST TOOLKIT & FILTERS ---
 st.sidebar.header("⚙️ Analyst Toolkit")
 
 with st.sidebar.expander("➕ Submit New Threat Intel", expanded=False):
@@ -133,14 +148,35 @@ with st.sidebar.expander("➕ Submit New Threat Intel", expanded=False):
             else:
                 st.error("Please fill out the Title and Indicators fields.")
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔍 Filter Telemetry Feed")
+search_query = st.sidebar.text_input("Search keywords or IPs...")
+selected_severities = st.sidebar.multiselect(
+    "Filter by Severity", 
+    ["Critical 🚨", "High ⚠️", "Medium ℹ️", "Low 🟢"], 
+    default=["Critical 🚨", "High ⚠️", "Medium ℹ️", "Low 🟢"]
+)
+
 # --- MAIN DASHBOARD CONTENT ---
 conn = get_db_connection()
 reports_df = pd.read_sql_query("SELECT * FROM intel_reports ORDER BY id DESC", conn)
+conn.close()
+
+# Apply Filters dynamically
+if search_query:
+    reports_df = reports_df[
+        reports_df['title'].str.contains(search_query, case=False, na=False) | 
+        reports_df['raw_content'].str.contains(search_query, case=False, na=False) |
+        reports_df['threat_actor'].str.contains(search_query, case=False, na=False)
+    ]
+
+if selected_severities:
+    reports_df = reports_df[reports_df['severity'].isin(selected_severities)]
 
 # Metrics Summary Bar
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Total Intel Reports", len(reports_df))
+    st.metric("Total Filtered Reports", len(reports_df))
 with col2:
     critical_count = len(reports_df[reports_df['severity'].str.contains("Critical", na=False)])
     st.metric("Critical Threats 🚨", critical_count)
@@ -152,7 +188,7 @@ with col4:
 st.markdown("---")
 
 # --- ACTIVE INTEL FEED ---
-st.subheader("📋 Active Intelligence Feed & Risk Analysis")
+st.subheader("📋 Active Intelligence Feed & Incident Playbooks")
 
 if not reports_df.empty:
     for idx, row in reports_df.iterrows():
@@ -162,21 +198,27 @@ if not reports_df.empty:
         
         card_title = f"{sev} | {row['title']} (Actor: {actor})"
         
-        with st.expander(card_title, expanded=False):
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                st.markdown("**📝 Threat Description & Raw Indicators:**")
-                st.code(row['raw_content'], language="text")
-            with c2:
-                st.markdown("**🛡️ Recommended Mitigation:**")
-                st.info(mitig)
-                st.caption(f"Log Timestamp: {row['timestamp']}")
+        with st.expander(card_title, expanded=True):
+            tab1, tab2 = st.tabs(["📝 Raw Telemetry & Mitigation", "⚙️ Automated Incident Playbook"])
+            
+            with tab1:
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    st.markdown("**Indicators of Compromise (IoCs):**")
+                    st.code(row['raw_content'], language="text")
+                with c2:
+                    st.markdown("**Analyst Action Plan:**")
+                    st.info(mitig)
+                    st.caption(f"Timestamp: {row['timestamp']}")
+                    
+            with tab2:
+                st.markdown("### NIST Incident Response Framework")
+                playbook_text = generate_playbook(row['title'], sev)
+                st.markdown(playbook_text)
 else:
-    st.info("No threat intelligence records found.")
+    st.warning("No threat intelligence records matched your search filters.")
 
 # Raw Data Table View
 st.markdown("---")
 st.subheader("🔍 Structured Database Records")
 st.dataframe(reports_df, use_container_width=True)
-
-conn.close()
