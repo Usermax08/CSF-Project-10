@@ -1,8 +1,10 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import json
+import io
 import datetime
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 # Page Configuration
 st.set_page_config(page_title="Threat Intelligence Platform", page_icon="🛡️", layout="wide")
@@ -118,6 +120,64 @@ def generate_playbook(title, severity):
         **Phase 1: Containment (Severity: {severity})** 🛑\n- Isolate source and destination endpoints involved in anomaly.\n\n**Phase 2: Eradication** 🧹\n- Apply vendor patches and update firewall rules.\n\n**Phase 3: Recovery** 🔄\n- Conduct post-incident log review and archive artifact.
         """
 
+# Helper function to generate a beautifully formatted Excel file in memory
+def create_styled_excel(df):
+    output = io.BytesIO()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Threat Intelligence"
+    
+    # Ensure grid lines are visible
+    ws.views.sheetView[0].showGridLines = True
+    
+    # Header styling
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    thin_border = Border(
+        left=Side(style='thin', color='D3D3D3'),
+        right=Side(style='thin', color='D3D3D3'),
+        top=Side(style='thin', color='D3D3D3'),
+        bottom=Side(style='thin', color='D3D3D3')
+    )
+    
+    # Write headers
+    headers = list(df.columns)
+    ws.append(headers)
+    
+    for col_num in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    ws.row_dimensions[1].height = 25
+    
+    # Write data rows
+    for row_idx, row_data in enumerate(df.itertuples(index=False), start=2):
+        ws.append(list(row_data))
+        ws.row_dimensions[row_idx].height = 20
+        for col_num in range(1, len(row_data) + 1):
+            cell = ws.cell(row=row_idx, column=col_num)
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center", horizontal="left")
+            cell.font = Font(name="Calibri", size=10)
+            
+    # Auto-fit columns with safety padding so no ##### hashes ever appear
+    for col in ws.columns:
+        max_len = 0
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        for cell in col:
+            if cell.value:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = max(max_len + 5, 18)
+        
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
 # --- HEADER SECTION ---
 st.title("🛡️ AI-Powered Threat Intelligence Platform")
 st.markdown("Real-time telemetry, Threat Indicators of Compromise (IoCs), and Automated Incident Response Playbooks.")
@@ -167,15 +227,15 @@ conn = get_db_connection()
 full_df = pd.read_sql_query("SELECT * FROM intel_reports ORDER BY id DESC", conn)
 conn.close()
 
-# Use 'utf-8-sig' so Excel automatically detects encoding and renders emojis correctly
-csv_data = full_df.to_csv(index=False).encode('utf-8-sig')
+# Generate styled Excel bytes
+excel_data = create_styled_excel(full_df)
 json_data = full_df.to_json(orient="records", indent=4).encode('utf-8')
 
 st.sidebar.download_button(
-    label="📥 Download CSV Report",
-    data=csv_data,
-    file_name=f"threat_intel_report_{datetime.date.today()}.csv",
-    mime="text/csv",
+    label="📊 Download Excel Report (.xlsx)",
+    data=excel_data,
+    file_name=f"threat_intel_report_{datetime.date.today()}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 )
 
 st.sidebar.download_button(
