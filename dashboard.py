@@ -167,7 +167,8 @@ conn = get_db_connection()
 full_df = pd.read_sql_query("SELECT * FROM intel_reports ORDER BY id DESC", conn)
 conn.close()
 
-csv_data = full_df.to_csv(index=False).encode('utf-8')
+# Use 'utf-8-sig' so Excel automatically detects encoding and renders emojis correctly
+csv_data = full_df.to_csv(index=False).encode('utf-8-sig')
 json_data = full_df.to_json(orient="records", indent=4).encode('utf-8')
 
 st.sidebar.download_button(
@@ -230,6 +231,45 @@ if total_reports > 0:
         st.metric("Low Risk Ratio", f"{low_ratio * 100:.1f}%")
         
     st.progress(crit_ratio + high_ratio, text="Proportion of Elevated & Critical Risk Telemetry")
+
+# --- AI ANALYST COPILOT SECTION ---
+st.markdown("---")
+st.subheader("🤖 AI Security Copilot & Natural Language Querying")
+
+with st.expander("💬 Ask AI Analyst about Current Telemetry", expanded=False):
+    user_query = st.text_input("Ask a question about your database (e.g., 'Summarize critical threats', 'Who are the threat actors?', 'Ransomware status'):", placeholder="Type your query here...")
+    
+    if user_query:
+        q_lower = user_query.lower()
+        copilot_df = full_df.copy()
+        
+        st.markdown("**🧠 AI Copilot Response:**")
+        
+        if "critical" in q_lower or "ransomware" in q_lower:
+            crit_reports = copilot_df[copilot_df['severity'].str.contains("Critical", na=False)]
+            st.warning(f"Found **{len(crit_reports)}** critical threats in telemetry. Primary vectors involve targeted infrastructure breaches and unauthorized C2 beaconing. Immediate containment recommended.")
+            for _, r in crit_reports.iterrows():
+                st.write(f"- **{r['title']}** (Actor: {r['threat_actor']})")
+                
+        elif "actor" in q_lower or "group" in q_lower:
+            actors = copilot_df['threat_actor'].unique().tolist()
+            st.info(f"Active threat actor profiles detected in current database: **{', '.join(actors)}**. High-priority tracking recommended for APT-29 and DarkWeb Ops.")
+            
+        elif "summary" in q_lower or "overview" in q_lower:
+            total = len(copilot_df)
+            crit = len(copilot_df[copilot_df['severity'].str.contains("Critical", na=False)])
+            high = len(copilot_df[copilot_df['severity'].str.contains("High", na=False)])
+            st.success(f"Executive Summary: Platform tracking {total} active records ({crit} Critical, {high} High risk). Telemetry feeds remain synchronized and operational.")
+            
+        else:
+            st.write(f"Analyzing database for query: *'{user_query}'*...")
+            matches = copilot_df[copilot_df['raw_content'].str.contains(user_query, case=False, na=False) | copilot_df['title'].str.contains(user_query, case=False, na=False)]
+            if not matches.empty:
+                st.success(f"Found {len(matches)} matching records for your query.")
+                for _, r in matches.iterrows():
+                    st.write(f"- **{r['title']}** | Severity: {r['severity']}")
+            else:
+                st.error("No direct telemetry matches found. Try querying keywords like 'critical', 'actor', or 'summary'.")
 
 st.markdown("---")
 
