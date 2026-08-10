@@ -1,0 +1,14 @@
+name: Keep Streamlit App Alive
+
+on:
+  schedule:
+    - cron: "0 */4 * * *" # Automatically triggers every 4 hours
+  workflow_dispatch: # Allows you to manually trigger it from GitHub anytime
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send HTTP request to Streamlit app
+        run: |
+          curl -s -o /dev/null -w "%{http_code}\n" https://csf-project-10.streamlit.app
